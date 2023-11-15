@@ -1,0 +1,39 @@
+use v6;
+use Parser;
+use Testing; 
+use Documentation;
+
+multi sub MAIN {
+    "PLEASE GIVE ME A FILE TO WORK ON".say;
+}
+
+multi sub MAIN ($dir, $cg, $gitHistory) {
+    my @todo = $dir.IO;
+    my %commentedfiles;
+    while @todo {
+        for @todo.pop.dir -> $path {
+           if ($path.Str ~~  /.* \.m$/) {
+            
+                %commentedfiles{(IO::Spec::Unix.basename($path.Str) ~~ /(.*) \.m/)[0]} = $path.Str  if $path.IO.lines.grep({/\%\!/});
+            
+           }
+            
+            @todo.push: $path if $path.d;
+        }
+    }
+    my %touched := Parser::getTouchedFiles($gitHistory,$cg);
+    for %touched.keys -> $t {
+        $t.say;
+        my Parser::Spec $parsed = Parser::Spec.new;
+        $parsed = Parser::parse(%commentedfiles{$t});
+        my $filename = $t.Str;
+        "=======\n".say;
+        $parsed.printSpecification;
+        "=======\n".say;
+        Documentation::makeDocumentation($parsed, $filename~".html");
+        Testing::createTestCases($parsed, "test_$filename.m");
+    }
+    
+    return;
+    
+}

@@ -1,0 +1,6 @@
+[submodule "callGraph"]
+	path = callGraph
+	url = https://github.com/koknat/callGraph
+[submodule "MOxUnit"]
+	path = MOxUnit
+	url = https://github.com/MOxUnit/MOxUnit
