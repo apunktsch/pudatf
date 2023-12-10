@@ -1,7 +1,15 @@
 #!/bin/bash
+if [ "$#" -ne 1 ]
+then
+  echo "please provide a folder"
+  exit 1
+fi
 cg="cg.yml"
-#./callGraph/callGraph $1 -language 'm' -noShow -ymlOut $cg 
-rakudo -I ./modules/ do.raku\  $1 $cg "$(git -C $1 diff --name-only HEAD HEAD~1)"
+./callGraph/callGraph $1 -language 'm' -noShow -ymlOut $cg 
+rakudo -I ./modules/ do.raku\  $1 $cg "
+DEMO/add.m
+DEMO/multiply.m
+" #"$(git -C $1 diff --name-only HEAD HEAD~1)"
 #matlab run_all_tests.m
 #octave run_all_tests.m
 

@@ -1,2 +1,6 @@
 mmess/
 *.html
+cg.yml
+test_add.m
+test_multiply.m
+modules/.precomp
