@@ -101,87 +101,126 @@ multi sub parseParam(Parser::Param $param, $ind --> Str) {
             # this should never happen, if this triggers, the parser broke
         };
 }
-
-our sub createTestCases (Parser::Spec $spec, $filename) {
-my $fh = open $filename, :w;
-my $testNum = 0;
-# print MOxUnitHeader 
-my $funcname =(IO::Spec::Unix.basename($spec.getFileName) ~~ /.* \.m/).Str.split('.')[0].Str; 
-my $MOxUnitHeader = qq:to/END1/;
-function test_suite=test_$funcname
-    try 
-        test_functions=localfunctions();
-    catch
-    end
-    initTestSuite;
-end
-END1
-$fh.print($MOxUnitHeader);
-my $postConditions = "";
-# set up postConditions;
-for $spec.getConditions -> $cond {
-    if $cond.getPre {
-    my $t = $cond.getCondition;;
-    $postConditions ~= "assert($t)\n";
-    }
+sub parseNegativeParam(Parser::Param $param, $ind --> Str) {
+    # create some negative test cases to test, whether it is within spec.
+    do given $param.getType {
+            when 'real'   {return makeString($param, $ind);   }
+            when 'int'    {return makeReal($param, $ind);    }
+            when 'string' {return makeChar($param, $ind); }
+            when 'char'   {return makeInt($param, $ind);   }
+            default       { return ""                 }
+            # this should never happen, if this triggers, the parser broke
+        };
 }
-my $singleVals = ""; 
-    for $spec.getParameters -> $param {
-          if $param.getValues == [] {
-          $singleVals = $singleVals~parseParam($param)~"\n";
-          } 
-    }
-    # make list of value lengths
-    my @lengthList; 
-    my $i = 0;
-    for $spec.getParameters -> $param {
-      
-        @lengthList[$i] = $param.getValues.elems;
-        $i = $i + 1;
-    }
-    my $numRuns = 1;
-    for 0 ..^ @lengthList.elems  -> $i {
-        if @lengthList[$i] != 0 {
-            $numRuns *= @lengthList[$i];
+our sub createTestCases (Parser::Spec $spec, $filename) {
+    my $fh = open $filename, :w;
+    my $testNum = 0;
+    # print MOxUnitHeader 
+    my $funcname =(IO::Spec::Unix.basename($spec.getFileName) ~~ /.* \.m/).Str.split('.')[0].Str; 
+    my $MOxUnitHeader = qq:to/END1/;
+    function test_suite=test_$funcname
+        try 
+            test_functions=localfunctions();
+        catch
+        end
+        initTestSuite;
+    end
+    END1
+    $fh.print($MOxUnitHeader);
+    my $postConditions = "";
+    # set up postConditions;
+    for $spec.getConditions -> $cond {
+        if $cond.getPre {
+        my $t = $cond.getCondition;;
+        $postConditions ~= "assert($t)\n";
         }
     }
-    my @perm; 
-    @perm[$_] = 0 for 0 ..^ @lengthList.elems;
-    my @AHHHH;
-    my $index = 0;
-    # preprocess @lengthlist
-    for 0 ..^ $numRuns -> $i {
-        for 0..^ @lengthList.elems -> $j {
-            if @perm[$j] + 1 >= @lengthList[$j] {
-                @perm[$j] = 0;
-                next;
-            }
-            @perm[$j] += 1;
-            last;
-            
-
-        }
-        # DO STUFF HERE!!! @perm is correct (not in any logical order, but meh who cares)
-        my $uniqueVals = "";
-        my $k = 0;
+    my $singleVals = ""; 
         for $spec.getParameters -> $param {
-            if $param.getValues != [] {
-            $uniqueVals = $uniqueVals~parseParam($param, @perm[$k])~"\n";
+            if $param.getValues == [] {
+            $singleVals = $singleVals~parseParam($param)~"\n";
             } 
-
-            $k += 1;
         }
+        # make list of value lengths
+        my @lengthList;
+        my $i = 0;
+        for $spec.getParameters -> $param {
+        
+            @lengthList[$i] = $param.getValues.elems;
+            $i = $i + 1;
+        }
+        my $numRuns = 1;
+        for 0 ..^ @lengthList.elems  -> $i {
+            if @lengthList[$i] != 0 {
+                $numRuns *= @lengthList[$i];
+            }
+        }
+        my @perm; 
+        @perm[$_] = 0 for 0 ..^ @lengthList.elems;
+        my @AHHHH;
+        my $index = 0;
+        # preprocess @lengthlist
+        for 0 ..^ $numRuns -> $i {
+            for 0..^ @lengthList.elems -> $j {
+                if @perm[$j] + 1 >= @lengthList[$j] {
+                    @perm[$j] = 0;
+                    next;
+                }
+                @perm[$j] += 1;
+                last;
+                
 
-         my $varSetup =  ($singleVals~$uniqueVals);
-         #$varSetup.say;
-         # for each call, setup the call. 
-         for $spec.getCalls -> $c {
-            $fh.print("function test_$testNum \n"~$varSetup~"\n\n"~$c.visualOutputs~"="~
-                      $spec.getFuncName~"("~$c.visualInputs~");\n"~ $postConditions~"end\n");
-            
-            $testNum += 1;
-         }
+            }
+            # DO STUFF HERE!!! @perm is correct (not in any logical order, but meh who cares)
+            my $uniqueVals = "";
+            my $k = 0;
+            for $spec.getParameters -> $param {
+                if $param.getValues != [] {
+                $uniqueVals = $uniqueVals~parseParam($param, @perm[$k])~"\n";
+                } 
+
+                $k += 1;
+            }
+
+            my $varSetup =  ($singleVals~$uniqueVals);
+            #$varSetup.say;
+            # for each call, setup the call. 
+            for $spec.getCalls -> $c {
+                $fh.print("function test_$testNum \n"~$varSetup~"\n\n"~$c.visualOutputs~"="~
+                        $spec.getFuncName~"("~$c.visualInputs~");\n"~ $postConditions~"end\n");
+                
+                $testNum += 1;
+            }
+        }
+    # create wrong type testcases
+    my $uniqueVals = "";
+    my $k = 0;
+    for $spec.getParameters -> $param {
+        if $param.getValues != [] {
+            $uniqueVals = $uniqueVals~parseNegativeParam($param, @perm[$k])~"\n";
+        } 
+
+        $k += 1;
     }
-$fh.close;
+    $postConditions = "";
+    for $spec.getConditions -> $cond {
+        if $cond.getPre {
+            my $t = $cond.getCondition;;
+            $postConditions ~= "assertFalse($t)\n";
+        }
+    }
+
+            my $varSetup =  ($singleVals~$uniqueVals);
+            #$varSetup.say;
+            # for each call, setup the call. 
+            for $spec.getCalls -> $c {
+               $fh.print("function test_$testNum \n"~$varSetup~"\n\n"~"assertExceptionThrown("~
+                        $spec.getFuncName~"("~$c.visualInputs~"),id ='*');\n"~ $postConditions~"end\n");
+                
+                $testNum += 1;
+            }
+
+    # create out of spec testcases
+    $fh.close;
 }
 
