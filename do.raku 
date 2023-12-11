@@ -22,14 +22,12 @@ multi sub MAIN ($dir, $cg, $gitHistory) {
         }
     }
     my %touched := Parser::getTouchedFiles($gitHistory,$cg);
+    unlink "defaults.mark";
     for %touched.keys -> $t {
         $t.say;
         my Parser::Spec $parsed = Parser::Spec.new;
         $parsed = Parser::parse(%commentedfiles{$t});
         my $filename = $t.Str;
-        "=======\n".say;
-        $parsed.printSpecification;
-        "=======\n".say;
         Documentation::makeDocumentation($parsed, $filename~".html");
         Testing::createTestCases($parsed, "test_$filename.m");
     }

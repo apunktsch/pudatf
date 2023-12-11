@@ -4,3 +4,5 @@ cg.yml
 test_add.m
 test_multiply.m
 modules/.precomp
+debug_mark.raku
+copy_*

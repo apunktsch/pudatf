@@ -1,5 +1,5 @@
 use v6;
-
+use Mark;
 unit module Parser;
 # c-like header stuff
 class SZ { ... }
@@ -253,7 +253,6 @@ class Spec{
       @!descriptions.append($d);
     }
     submethod addToLastDescription($s) {
-      @!descriptions[*-1].say;
       @!descriptions[*-1].addLine($s);
     }
     submethod addCall($c) {
@@ -386,8 +385,23 @@ our sub parse($file --> Spec){
       my $match =  Docu.parse($line, actions => Doku-Actions );
     }
   }   
-
+writeSpecToMark($doc);
 return $doc;
+}
+
+sub writeSpecToMark($doc){
+  my $mark = "";
+   $mark ~= $doc.funcName.Str~":";
+  for $doc.getParameters -> $pa {
+    #$pa.raku.say;
+    if $pa.values {
+        $mark ~= ("\n    "~($pa.name.Str)~":"~($pa.values[0]));
+    }
+  }
+  $mark ~= "\n";
+my $fh = open "defaults.mark", :a;
+$fh.print($mark);
+$fh.close;
 }
 
 class CallNode {
