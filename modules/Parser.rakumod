@@ -481,5 +481,9 @@ our sub getTouchedFiles($files, $callgraph --> Hash ) {
               @queue.append($caller);
            }         
     }
+      for $files.split("\n") -> $file {        
+        my $key = (IO::Spec::Unix.basename($file) ~~ /(.*) \.m/)[0];
+        %visited{$key} = True if $key;;
+      }
     return %visited;
 }
