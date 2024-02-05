@@ -10,6 +10,7 @@ rakudo -I ./modules/ do.raku\  $1 $cg "
 DEMO/add.m
 DEMO/multiply.m
 DEMO/test.m
+DEMO/ihaveasystem.m
 " #"$(git -C $1 diff --name-only HEAD HEAD~1)"
 #matlab run_all_tests.m
 #octave run_all_tests.m

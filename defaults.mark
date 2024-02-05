@@ -1,0 +1,12 @@
+solf:
+solf:
+    y:'N'
+    z:1
+    stuff:"hey"
+    opts.log.word:"how"
+add:
+    y:1
+    z:1
+multiply:
+    b:1
+    c:1

@@ -11,7 +11,7 @@ end
 while ischar(tline)
     sides = split(tline,":");
     if strcmp(strrep(sides(1)," ",""), value)
-        eval(strcat("default=",string(sides(2))));
+        eval(strcat("default=",string(sides(2)),";"));
     end
     tline = fgetl(fid);
 end

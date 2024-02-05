@@ -108,9 +108,21 @@ sub parseNegativeParam(Parser::Param $param, $ind --> Str) {
             when 'int'    {return makeReal($param, $ind);    }
             when 'string' {return makeChar($param, $ind); }
             when 'char'   {return makeInt($param, $ind);   }
-            default       { return ""                 }
+            default       {return ""                 }
             # this should never happen, if this triggers, the parser broke
         };
+}
+our sub getAppropriateSystems( Parser::System $syss --> Array) {
+    my $members = $syss.getMembers;
+    my $fh = open "systems/systems.index";
+    my @matchingSystems = [];
+    for $fh.IO.lines -> $line {
+        my $match = ($line ~~ / (.*) \: \s* (<[A..Za..z0..9  _]>*) /);
+        my $match_split = $match[0].Str.split(",");
+        @matchingSystems.append($match[1].Str) if $match_split == $members;
+    }
+    $fh.close;
+    return @matchingSystems;
 }
 our sub createTestCases (Parser::Spec $spec, $filename) {
     my $fh = open $filename, :w;
@@ -136,11 +148,11 @@ our sub createTestCases (Parser::Spec $spec, $filename) {
         }
     }
     my $singleVals = ""; 
-        for $spec.getParameters -> $param {
-            if $param.getValues == [] {
-            $singleVals = $singleVals~parseParam($param)~"\n";
-            } 
-        }
+    for $spec.getParameters -> $param {
+        if $param.getValues == [] {
+        $singleVals = $singleVals~parseParam($param)~"\n";
+        } 
+    }
         # make list of value lengths
         my @lengthList;
         my $i = 0;
@@ -150,51 +162,76 @@ our sub createTestCases (Parser::Spec $spec, $filename) {
             $i = $i + 1;
         }
         my $numRuns = 1;
-        for 0 ..^ @lengthList.elems  -> $i {
-            if @lengthList[$i] != 0 {
-                $numRuns *= @lengthList[$i];
-            }
+        for @lengthList -> $x {$numRuns = $numRuns * max(1,$x)}
+        # scale lengthlist by possible systems
+        my $j = 0; 
+        $i = 0;
+        my @systemms;
+        for $spec.getSystems -> $sys_var {
+               @systemms[$j++] = getAppropriateSystems($sys_var);
         }
+        my @sysLength = @systemms.map( -> $arr { $arr.elems });
+        my $differentSystems = [*] @sysLength;
+        $numRuns = $numRuns * $differentSystems;
+        my Int $l_perm = (@lengthList.elems + @systemms.elems) + 0;
+        $j = 0;
         my @perm; 
-        @perm[$_] = 0 for 0 ..^ @lengthList.elems;
-        my @AHHHH;
+        @perm[$_] = 0 for 0 .. $l_perm; 
         my $index = 0;
         # preprocess @lengthlist
-        for 0 ..^ $numRuns -> $i {
-            for 0..^ @lengthList.elems -> $j {
-                if @perm[$j] + 1 >= @lengthList[$j] {
-                    @perm[$j] = 0;
-                    next;
+        my $uniqueVals = "";
+        my $k = 0;
+        my $varSetup = "";
+        for 0..$numRuns -> $i {
+            for 0..(@lengthList.elems + @systemms.elems - 1) -> $j {
+                if $j < @lengthList.elems {
+                    if ((@perm[$j] + 1) >= @lengthList[$j]) {
+                        @perm[$j] = 0;
+                        next;
+                    }
+                    @perm[$j] += 1;
+                    last;
+                } else  {
+                    my $u = $j - @lengthList.elems;
+                    ($u~" "~$j~" "~@lengthList.elems).say;
+                     if ((@perm[$j] + 1) >= @systemms[$u]) {
+                        @perm[$j] = 0;
+                        next;
+                    }
+                    @perm[$j] += 1;
+                    last;
                 }
-                @perm[$j] += 1;
-                last;
-                
-
             }
             # DO STUFF HERE!!! @perm is correct (not in any logical order, but meh who cares)
-            my $uniqueVals = "";
-            my $k = 0;
+            $uniqueVals = "";
+            $k = 0;
             for $spec.getParameters -> $param {
-                if $param.getValues != [] {
-                $uniqueVals = $uniqueVals~parseParam($param, @perm[$k])~"\n";
+                if $k < @lengthList.elems {
+                    if $param.getValues != [] {
+                    $uniqueVals = $uniqueVals~parseParam($param, @perm[$k])~"\n";
+                    } 
                 } 
-
                 $k += 1;
             }
-
-            my $varSetup =  ($singleVals~$uniqueVals);
+            $varSetup =  ($singleVals~$uniqueVals);
             #$varSetup.say;
+            #setup systems 
+            for 0..(@systemms.elems - 1) -> $l {
+                #(@systemms.elems~" "~@lengthList.elems~"-->"~$l).say;
+                $varSetup ~= ("\n"~Q[load("systems/]~(@systemms[$l][@perm[$k+$l]])~Q[.mat");]~"\n")
+                
+            }
             # for each call, setup the call. 
             for $spec.getCalls -> $c {
                 $fh.print("function test_$testNum \n"~$varSetup~"\n\n"~$c.visualOutputs~"="~
                         $spec.getFuncName~"("~$c.visualInputs~");\n"~ $postConditions~"end\n");
-                
                 $testNum += 1;
             }
-        }
+            
+        
     # create wrong type testcases
-    my $uniqueVals = "";
-    my $k = 0;
+    $uniqueVals = "";
+    $k = 0;
     for $spec.getParameters -> $param {
         if $param.getValues != [] {
             $uniqueVals = $uniqueVals~parseNegativeParam($param, @perm[$k])~"\n";
@@ -210,17 +247,18 @@ our sub createTestCases (Parser::Spec $spec, $filename) {
         }
     }
 
-            my $varSetup =  ($singleVals~$uniqueVals);
-            #$varSetup.say;
-            # for each call, setup the call. 
-            for $spec.getCalls -> $c {
-               $fh.print("function test_$testNum \n"~$varSetup~"\n\n"~"assertExceptionThrown("~
-                        $spec.getFuncName~"("~$c.visualInputs~"),id ='*');\n"~ $postConditions~"end\n");
+    $varSetup =  ($singleVals~$uniqueVals);
+    #$varSetup.say;
+    # for each call, setup the call. 
+    for $spec.getCalls -> $c {
+        $fh.print("function test_$testNum \n"~$varSetup~"\n\n"~"assertExceptionThrown("~
+                  $spec.getFuncName~"("~$c.visualInputs~"),id ='*');\n"~ $postConditions~"end\n");
                 
-                $testNum += 1;
-            }
+        $testNum += 1;
+    }
 
     # create out of spec testcases
-    $fh.close;
+        }
+$fh.close;
 }
 

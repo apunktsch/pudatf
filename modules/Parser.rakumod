@@ -19,8 +19,8 @@ grammar Docu {
     token condition {.*}
     token descriptionheader { 'description'\s*'(' (<[A..Za..z | _]>*) ')'\s*}
     token description { ('>' (.*))}
-    token system { 'system' \s* '['<systemvars>']' }
-    token systemvars { \s* <[A..Za..z  _]>  <[A..Za..z  _]>*  }
+    token system { 'system' \s* '['<systemvars> ']' }
+    token systemvars { \s* <[A..Za..z ,  _]>  <[A..Za..z , _]>*  }
     token call { 'call' \s* '[[' <output> '],[' <input> ']]' }
     token is { 'is'\s*<var>\s*<datatype> \s* [[ 'björk' \s*'[' <constraints>']'\s* ] | [ 'of' \s*<size>\s*]]* }
     token var { <[A..Za..z _ \.]>*  }
@@ -38,6 +38,9 @@ class System {
 
   submethod visual ( --> Str) {
     return "System consisting of: "~(@!members.join(",").Str)
+  }
+  submethod getMembers ( --> Array) {
+    return @!members;
   }
 }
 class Doku-Actions {
@@ -64,6 +67,8 @@ class Doku-Actions {
    $doc.addCall(Call.new(inputs => $doc.getPendingInput, outputs => $doc.getPendingOutput));
    $doc.addDescription(Description.new(var => ("call_$num_calls").Str));
 
+  }
+  method system ($/) {
   }
   method systemvars ($/) {
     $doc.addSystem(System.new(members => $/.Str.split(",")));
