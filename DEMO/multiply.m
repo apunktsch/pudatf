@@ -2,7 +2,7 @@ function a = multiply(b,c)
 %! is a int
 %! is b int 
 %! is c int
-%! description (add) 
+%! description (multiply) 
 %!> multiplies two numbers
 %! description (a) 
 %!> result of multiplying c and b
@@ -18,6 +18,13 @@ function a = multiply(b,c)
 %! ensures b ==  a / c
 %! ensures c ==  a / b
 a = 0;
+if ~isa(b,'double')
+    error("b is not a number")
+end
+
+if ~isa(a,'double')
+    error("a is not a number")
+end
 for i = 1:c
     a = add(a,b);
 end

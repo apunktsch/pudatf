@@ -2,36 +2,89 @@ use v6;
 use Parser;
 use Testing; 
 use Documentation;
+use JSON::Class;
 
 multi sub MAIN {
     "PLEASE GIVE ME A FILE TO WORK ON".say;
 }
 
-multi sub MAIN ($dir, $cg, $gitHistory) {
+multi sub MAIN ($dir, $cg, $gitHistory, $mode) {
     my @todo = $dir.IO;
     my %commentedfiles;
+    # mode
+    # 1 touched only, full
+    # 2 touched only, smoke
+    # 3 all full
+    # 4 all smoke
+    my $smoke = True;
+    my $all = True;
+     do given $mode {
+            when 1 {$all = False; $smoke = False; } 
+            when 2 {$all = False; $smoke = True; }  
+            when 3 {$all = True; $smoke = False; } 
+            when 4 {$all = True; $smoke = True; } 
+            default       {"Invalid mode assuming mode 1 (touched only, smoke)!".say;}                 
+            }
     while @todo {
         for @todo.pop.dir -> $path {
-           if ($path.Str ~~  /.* \.m$/) {
-            
+           if ($path.Str ~~  /.* \.m$/) { 
                 %commentedfiles{(IO::Spec::Unix.basename($path.Str) ~~ /(.*) \.m/)[0]} = $path.Str  if $path.IO.lines.grep({/\%\!/});
-            
            }
-            
             @todo.push: $path if $path.d;
         }
     }
     my %touched := Parser::getTouchedFiles($gitHistory,$cg);
+    %touched = %commentedfiles if $all;
     unlink "defaults.mark";
+    my Parser::Spec $parsed = Parser::Spec.new;
+    # create tests for all files touched by commit
+    mkdir("_test");
+    mkdir("_help_data");
     for %touched.keys -> $t {
-        $t.say;
-        my Parser::Spec $parsed = Parser::Spec.new;
         $parsed = Parser::parse(%commentedfiles{$t});
+        #print($parsed.to-json());
         my $filename = $t.Str;
-        Documentation::makeDocumentation($parsed, $filename~".html");
-        Testing::createTestCases($parsed, "test_$filename.m");
+        my $helpData = open "_help_data/"~$filename~".json", :a;
+        # write parsed to file readable from matlab
+        $helpData.print($parsed.to-json());  
+        # create tests
+        Testing::createTestCases($parsed, "_test/test_$filename.m", $smoke);
+        $helpData.close;
     }
-    
+    # create documentation for all files with comments
+    mkdir("_docu");
+    for %commentedfiles.keys -> $t {
+        my $filename = $t.Str;
+        $parsed = Parser::parse(%commentedfiles{$t});
+        Documentation::makeDocumentation($parsed, "_docu/"~$filename~".html", %commentedfiles.keys);
+    }
+
+    # build run_all_tests file
+    my $run_all_files = qq:to/END1/;
+    % add testfiles to path
+    folder_path = '_test/';
+    addpath(genpath(folder_path));
+    % add original files to path
+    folder_path = '$dir';
+    addpath(genpath(folder_path));
+    % add MOxUnit to path
+    folder_path = 'MOxUnit';
+    addpath(genpath(folder_path));
+    % add MOxUnit to path
+    folder_path = 'MOcov';
+    addpath(genpath(folder_path));
+    cdir = cd('_test/');
+    success=moxunit_runtests('./',...
+                         '-with_coverage',...
+                         '-cover','$dir',...
+                         '-cover_xml_file','coverage.xml',...
+                         '-cover_html_dir','coverage_html');
+    cd(cdir);
+    END1
+
+    unlink "run_all_tests.m";
+    my $fh = open "run_all_tests.m", :w;
+    $fh.print($run_all_files);
+    $fh.close;
     return;
-    
 }

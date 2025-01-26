@@ -1,11 +1,11 @@
 %! is M int
 %! is N int
 %! is A matrix of [M,N]
-%! is B matrix of [N,M] björk [sparse,spd]
+%! is B matrix of [N,M] by [sparse,spd]
 %! is x struct 
 %! is y char
 %! is z int
-%! is x.eqn matrix 
+%! is x.eqn matrix of [3,5] by [sparse,id] 
 %! is tol real of [0,1]
 %! is guenther int
 %! is stuff string
@@ -15,9 +15,6 @@
 %! is opts.log.word string 
 %! ensures A * x == B
 %! requires x != 0
-%! call [[xc,xb],[A,a_C]]
-%! call [[xc,xb],[A,a_C,tol]]
-%! system [a,b,c,d]
 %! description (x)
 %!> x is a wonderful matrix, I do like it!
 %!> also for x, the size does not matter!

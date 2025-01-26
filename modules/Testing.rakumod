@@ -1,6 +1,7 @@
 use v6;
 use Parser;
 use Documentation;
+use constraints;
 unit module Testing;
 
 
@@ -8,11 +9,60 @@ unit module Testing;
 sub makeMatrix (Parser::Param $p --> Str) {
     my $pname = $p.getName;
     my $sz    = $p.getSize;
+
     if ($sz.Str ~~ /any/) {
         $sz = "[3,3]"
     }
-            
+    #         Sparse, id, symm, pd
+    my $aa = [False,  False, False, False];
+    if $p.HasConstraint() {
+        my $cons = $p.getConstraints; 
+        for 0..^$cons.elems -> $i {
+            do given $cons[$i] {
+            when 'sparse' {$aa[0] = True; } 
+            when 'id' {$aa[1] = True; }  
+            when 'symm' {$aa[2] = True; } 
+            when 'pd' {$aa[3] = True; } 
+            when 'spd' {$aa[2] = True; $aa[3] = True; } 
+            default       {"Invalid constraint!".say;}                 
+            }
+            # this should never happen, if this triggers, the parser broke
+        };
+        return selectMatrix($aa,$p);
+
+        }
     return "$pname = rand($sz);";
+}
+
+sub selectMatrix($booleans, $param --> Str) {
+    my $pname = $param.getName;
+    my $size = $param.getSize;
+    my $m = 3;
+    my $n = 3;
+    if !($size.Str ~~ /any/) {
+        my $splitt = ($size ~~ /\[(.*)\]/)[0].Str.split(",");
+        $n = $splitt[0];
+        $m = $splitt[1];
+    }
+    do given $booleans {
+            when $_ eqv [False, False, False, False] {"1".say}
+            when $_ eqv [False, False, False, True] {"2".say}
+            when $_ eqv [False, False, True, False] {"3".say}
+            when $_ eqv [False, False, True, True] {"4".say}
+            when $_ eqv [False, True, False, False] {"5".say}
+            when $_ eqv [False, True, False, True] {"6".say}
+            when $_ eqv [False, True, True, False] {"7".say}
+            when $_ eqv [False, True, True, True] {"8".say}
+            when $_ eqv [True, False, False, False] {"9".say}
+            when $_ eqv [True, False, False, True] {"10".say}
+            when $_ eqv [True, False, True, False] {"11".say}
+            when $_ eqv [True, False, True, True] {"12".say}
+            when $_ eqv [True, True, False, False] {return constraints::spd($pname,$m,$n)}
+            when $_ eqv [True, True, False, True] {"14".say}
+            when $_ eqv [True, True, True, False] {"15".say}
+            when $_ eqv (True, True, True, True) {"16".say}
+            }
+    return "";
 }
 multi sub makeReal (Parser::Param $p, $ind --> Str) {
     my $pname = $p.getName;
@@ -46,7 +96,9 @@ multi sub makeInt (Parser::Param $p --> Str) {
     if ($sz.Str ~~ /any/) {
         $sz = "[1,10]"
     }
-    
+    if ($sz.Str eq "") {
+        $sz = "10";
+    }
             
     return "$pname = randi($sz);";
 } 
@@ -124,7 +176,7 @@ our sub getAppropriateSystems( Parser::System $syss --> Array) {
     $fh.close;
     return @matchingSystems;
 }
-our sub createTestCases (Parser::Spec $spec, $filename) {
+our sub createTestCases (Parser::Spec $spec, $filename, $smoke) {
     my $fh = open $filename, :w;
     my $testNum = 0;
     # print MOxUnitHeader 
@@ -141,6 +193,7 @@ our sub createTestCases (Parser::Spec $spec, $filename) {
     $fh.print($MOxUnitHeader);
     my $postConditions = "";
     # set up postConditions;
+
     for $spec.getConditions -> $cond {
         if $cond.getPre {
         my $t = $cond.getCondition;;
@@ -182,6 +235,7 @@ our sub createTestCases (Parser::Spec $spec, $filename) {
         my $uniqueVals = "";
         my $k = 0;
         my $varSetup = "";
+        $numRuns = 1 if $smoke;
         for 0..$numRuns -> $i {
             for 0..(@lengthList.elems + @systemms.elems - 1) -> $j {
                 if $j < @lengthList.elems {
@@ -193,7 +247,6 @@ our sub createTestCases (Parser::Spec $spec, $filename) {
                     last;
                 } else  {
                     my $u = $j - @lengthList.elems;
-                    ($u~" "~$j~" "~@lengthList.elems).say;
                      if ((@perm[$j] + 1) >= @systemms[$u]) {
                         @perm[$j] = 0;
                         next;
@@ -230,31 +283,33 @@ our sub createTestCases (Parser::Spec $spec, $filename) {
             
         
     # create wrong type testcases
-    $uniqueVals = "";
-    $k = 0;
-    for $spec.getParameters -> $param {
-        if $param.getValues != [] {
-            $uniqueVals = $uniqueVals~parseNegativeParam($param, @perm[$k])~"\n";
-        } 
+    if $smoke == False {
+        "WRONG TESTS".say;
+        $uniqueVals = "";
+        $k = 0;
+        for $spec.getParameters -> $param {
+            if $param.getValues != [] {
+                $uniqueVals = $uniqueVals~parseNegativeParam($param, @perm[$k])~"\n";
+            } 
 
-        $k += 1;
-    }
-    $postConditions = "";
-    for $spec.getConditions -> $cond {
-        if $cond.getPre {
-            my $t = $cond.getCondition;;
-            $postConditions ~= "assertFalse($t)\n";
+            $k += 1;
         }
-    }
+        $postConditions = "";
+        for $spec.getConditions -> $cond {
+            if $cond.getPre {
+                my $t = $cond.getCondition;;
+                $postConditions ~= "assert($t)\n";
+            }
+        }
 
-    $varSetup =  ($singleVals~$uniqueVals);
-    #$varSetup.say;
-    # for each call, setup the call. 
-    for $spec.getCalls -> $c {
-        $fh.print("function test_$testNum \n"~$varSetup~"\n\n"~"assertExceptionThrown("~
-                  $spec.getFuncName~"("~$c.visualInputs~"),id ='*');\n"~ $postConditions~"end\n");
-                
+        $varSetup =  ($singleVals~$uniqueVals);
+        # for each call, setup the call. 
+        for $spec.getCalls -> $c {
+            $fh.print("function test_$testNum \n"~$varSetup~"\n\n"~"assertExceptionThrown("~
+                    $spec.getFuncName~"("~$c.visualInputs~"),'*');\n"~"end\n");
+                    
         $testNum += 1;
+        }
     }
 
     # create out of spec testcases

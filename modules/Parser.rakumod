@@ -1,6 +1,8 @@
 use v6;
 use Mark;
+use JSON::Class;
 unit module Parser;
+
 # c-like header stuff
 class SZ { ... }
 class Param { ... }
@@ -12,6 +14,7 @@ class Description { ... }
 class Struct { ... }
 our $doc = Spec.new;
 our $num_calls = 0;
+
 grammar Docu {
     token TOP     { \s* '%!' \s*( <ensures> | <requires> | <is> | <call> | <system> | <description> | <descriptionheader> | <defaults> ) }
     token ensures { 'ensures' <condition> }
@@ -22,9 +25,9 @@ grammar Docu {
     token system { 'system' \s* '['<systemvars> ']' }
     token systemvars { \s* <[A..Za..z ,  _]>  <[A..Za..z , _]>*  }
     token call { 'call' \s* '[[' <output> '],[' <input> ']]' }
-    token is { 'is'\s*<var>\s*<datatype> \s* [[ 'björk' \s*'[' <constraints>']'\s* ] | [ 'of' \s*<size>\s*]]* }
+    token is { 'is'\s*<var>\s*<datatype> \s* [[ 'by' \s* <constraints> \s* ] | [ 'of' \s*<size>\s*]]* }
     token var { <[A..Za..z _ \.]>*  }
-    token constraints {  <[A..Za..z  _  ,]>*  }
+    token constraints {  .*  }
     token output {\s* <[A..Za..z  _]>  <[A..Za..z  _  ,]>* }
     token input  {\s* <[A..Za..z  _]>  <[A..Za..z  _  ,]>* }
     token datatype { 'matrix' | 'real' | 'int' | 'string' | 'char' | 'struct' }
@@ -45,7 +48,9 @@ class System {
 }
 class Doku-Actions {
   method constraints ($/) {
-    $doc.setConstraintOfParameterAtIndex( $/.Str.split(',').Array.flat.Array, $doc.findParamIndex($doc.getCurrentParamName)); 
+    my $match = ($/.Str ~~ / '['(.*) ']' /)[0];
+
+    $doc.setConstraintOfParameterAtIndex( $match.split(',').Array, $doc.findParamIndex($doc.getCurrentParamName)); 
 
   }
   method var ($/) {
@@ -127,8 +132,16 @@ class Param {
   has SZ $.sz; 
   has Bool $.isMatrix is rw;
   has Array @.constraints is rw; 
+  has Bool $.hasConstraint is rw = False;
   has Str @.values is rw; 
   has Struct $.subs is rw;
+
+  submethod to-hash() {
+        return {
+            name => $!name,
+            type => $!type,
+        };
+    }
   submethod setValues(@vals) {
     @!values = @vals;
   }
@@ -141,9 +154,17 @@ class Param {
    submethod setSub($s) {
     $!subs = $s;
   } 
+  submethod HasConstraint( --> Bool){
+    return $!hasConstraint;
+  }
   submethod setConstraints ($cons) {
+    $!hasConstraint = True;
     @!constraints = $cons;
   }
+  submethod getConstraints (--> Array) {
+    return @!constraints[0];
+  }
+
   submethod getName (--> Str) {
     return $!name;
   }
@@ -169,7 +190,7 @@ class Param {
     if $!sz {
     return $!sz.visual;
     }
-    return "any"
+    return ""
   }
 
 }
@@ -201,6 +222,12 @@ class Description{
       $_.say if $_;
     }
   }
+  submethod getVar( --> Str){
+    return $!var;
+  }
+  submethod getDesc( --> Array){
+    return @!description;
+  }
 } 
 class Condition {
   has Str $.condition is rw; 
@@ -220,7 +247,7 @@ class Condition {
   }
 
 }
-class Spec{
+class Spec does JSON::Class  {
     has Str $.filename;
     has Str $.funcDescription;
     has Str $.funcName;
@@ -240,16 +267,10 @@ class Spec{
     submethod appendFuncDesc ($s){
       $!funcDescription ~= $s;
     }
-    submethod structStuff($s) {
-    # if exists, cascade down and recall
-    my $i = 1;
-    for @!structs -> $p {
-        if ($p.getName.Str === $s.Str) {
-          return $i;
-        }  
-        $i = $i + 1;
+    submethod getDescOfParam($pname){
+      for @!descriptions -> $d {
+        return $d.getDesc() if ($d.getVar().Str eq $pname);
       }
-    # else make new and cascade
     }
     submethod addSystem($s){
       @!systems.append($s);
@@ -381,7 +402,6 @@ our sub parse($file --> Spec){
   $doc = Spec.new;
   $num_calls = 0;
   $doc.setFileName($file);
-
   for $file.IO.lines -> $line {
     if $line ~~ /function .* \= \s*(.*)'('.*')' / {
     $doc.setFuncName(($line ~~ /function .* \= \s*(.*)'('.*')' /)[0].Str);
@@ -398,7 +418,6 @@ sub writeSpecToMark($doc){
   my $mark = "";
    $mark ~= $doc.funcName.Str~":";
   for $doc.getParameters -> $pa {
-    #$pa.raku.say;
     if $pa.values {
         $mark ~= ("\n    "~($pa.name.Str)~":"~($pa.values[0]));
     }
@@ -426,6 +445,12 @@ class CallNode {
     submethod getCalls ( --> Array) {
       return @!calls;
     }
+}
+our sub Matlab($sp --> Str) {
+  my $filename = $sp.getFileName();
+  $filename.say;
+  spurt "specs.json", to-json($sp, :pretty);
+  return "";
 }
 
 our sub parseYaml($fp --> Hash) {
@@ -486,7 +511,7 @@ our sub getTouchedFiles($files, $callgraph --> Hash ) {
               @queue.append($caller);
            }         
     }
-      for $files.split("\n") -> $file {        
+      for $files.split("\n") -> $file {   
         my $key = (IO::Spec::Unix.basename($file) ~~ /(.*) \.m/)[0];
         %visited{$key} = True if $key;;
       }

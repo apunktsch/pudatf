@@ -6,3 +6,6 @@ test_multiply.m
 modules/.precomp
 debug_mark.raku
 copy_*
+*.asv
+*.code-workspace
+*.index

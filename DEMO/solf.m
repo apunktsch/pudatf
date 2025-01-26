@@ -1,3 +1,6 @@
+function x = solf(A,B)
+%! description (solf) 
+%!> solves an equation
 %! is a int 
 %! is b int 
 %! is c int 
@@ -5,5 +8,4 @@
 %! system [a,b,c,d]
 %! system [Problem]
 
-function x = solf(A,B)
 x = A\B;
