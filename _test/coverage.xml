@@ -1,0 +1,56 @@
+<?xml version="1.0"?>
+<coverage line-rate="0.688" branch-rate="0.000">
+<sources><source>/Users/adrianschulze/Documents/Github/pudatf/DEMO</source></sources>
+<packages>
+<package name="" line-rate="0.688" branch-rate="0.000">
+<classes>
+<class name="add" filename="add.m" line-rate="1.000" branch-rate="0.0">
+<methods></methods><lines>
+<line number="20" hits="22" branch="false"/>
+</lines>
+</class>
+<class name="addmatrix" filename="addmatrix.m" line-rate="1.000" branch-rate="0.0">
+<methods></methods><lines>
+<line number="7" hits="2" branch="false"/>
+</lines>
+</class>
+<class name="area_of_circle" filename="area_of_circle.m" line-rate="1.000" branch-rate="0.0">
+<methods></methods><lines>
+<line number="9" hits="2" branch="false"/>
+</lines>
+</class>
+<class name="divide" filename="divide.m" line-rate="0.000" branch-rate="0.0">
+<methods></methods><lines>
+<line number="14" hits="0" branch="false"/>
+</lines>
+</class>
+<class name="factorial" filename="factorial.m" line-rate="1.000" branch-rate="0.0">
+<methods></methods><lines>
+<line number="8" hits="4" branch="false"/>
+<line number="9" hits="4" branch="false"/>
+<line number="10" hits="10" branch="false"/>
+</lines>
+</class>
+<class name="multiply" filename="multiply.m" line-rate="0.714" branch-rate="0.0">
+<methods></methods><lines>
+<line number="20" hits="12" branch="false"/>
+<line number="21" hits="12" branch="false"/>
+<line number="22" hits="0" branch="false"/>
+<line number="25" hits="12" branch="false"/>
+<line number="26" hits="0" branch="false"/>
+<line number="28" hits="12" branch="false"/>
+<line number="29" hits="20" branch="false"/>
+</lines>
+</class>
+<class name="solf" filename="solf.m" line-rate="0.000" branch-rate="0.0">
+<methods></methods><lines>
+<line number="11" hits="0" branch="false"/>
+</lines>
+</class>
+<class name="test" filename="test.m" line-rate="0.000" branch-rate="0.0">
+<methods></methods><lines>
+<line number="26" hits="0" branch="false"/>
+</lines>
+</class>
+</classes></package></packages>
+</coverage>

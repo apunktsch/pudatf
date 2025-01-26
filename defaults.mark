@@ -1,12 +1,42 @@
+factorial:
+    n:1
+addmatrix:
 solf:
+add:
+    y:1
+    z:1
+multiply:
+    b:1
+    c:1
+area_of_circle:
+    radius:1
 solf:
     y:'N'
     z:1
     stuff:"hey"
     opts.log.word:"how"
+divide:
+    a:1
+    b:1
+    c:1
+solf:
+multiply:
+    b:1
+    c:1
+solf:
+    y:'N'
+    z:1
+    stuff:"hey"
+    opts.log.word:"how"
+factorial:
+    n:1
 add:
     y:1
     z:1
-multiply:
+addmatrix:
+area_of_circle:
+    radius:1
+divide:
+    a:1
     b:1
     c:1
